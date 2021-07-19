@@ -265,6 +265,88 @@ describe('Post', () => {
     ]);
   });
 
+  // #4511
+  it('create() - avoid quote if unnecessary', async () => {
+    const scaffold = [
+      '---',
+      'title: {{ title }}',
+      '---'
+    ].join('\n');
+
+    await hexo.scaffold.set('test', scaffold);
+    const result = await post.create({
+      title: 'Hello World',
+      layout: 'test'
+    });
+
+    const data = await readFile(result.path);
+    data.should.eql([
+      '---',
+      'title: Hello World',
+      '---'
+    ].join('\n') + '\n');
+
+    await Promise.all([
+      unlink(result.path),
+      hexo.scaffold.remove('test')
+    ]);
+  });
+
+  // #4511
+  it('create() - wrap with quote when necessary', async () => {
+    const scaffold = [
+      '---',
+      'title: {{ title }}',
+      '---'
+    ].join('\n');
+
+    await hexo.scaffold.set('test', scaffold);
+    const result = await post.create({
+      title: 'Hello: World',
+      layout: 'test'
+    });
+
+    const data = await readFile(result.path);
+    data.should.eql([
+      '---',
+      'title: \'Hello: World\'',
+      '---'
+    ].join('\n') + '\n');
+
+    await Promise.all([
+      unlink(result.path),
+      hexo.scaffold.remove('test')
+    ]);
+  });
+
+  // #4511
+  it('create() - wrap with quote when necessary - yaml tag', async () => {
+    const scaffold = [
+      '---',
+      'title: {{ title }}',
+      '---'
+    ].join('\n');
+
+    await hexo.scaffold.set('test', scaffold);
+    const result = await post.create({
+      // https://github.com/nodeca/js-yaml#supported-yaml-types
+      title: '!!js/regexp /pattern/gim',
+      layout: 'test'
+    });
+
+    const data = await readFile(result.path);
+    data.should.eql([
+      '---',
+      'title: \'!!js/regexp /pattern/gim\'',
+      '---'
+    ].join('\n') + '\n');
+
+    await Promise.all([
+      unlink(result.path),
+      hexo.scaffold.remove('test')
+    ]);
+  });
+
   it('create() - JSON front-matter', async () => {
     const scaffold = [
       '"title": {{ title }}',
@@ -749,6 +831,55 @@ describe('Post', () => {
     data.content.should.not.eql(content.toUpperCase());
   });
 
+  it('render() - (disableNunjucks === true) - front-matter', async () => {
+    const renderer = hexo.render.renderer.get('markdown');
+    renderer.disableNunjucks = true;
+
+    try {
+      const data = await post.render(null, {
+        content: fixture.content,
+        engine: 'markdown',
+        disableNunjucks: false
+      });
+      data.content.trim().should.eql(fixture.expected);
+    } finally {
+      renderer.disableNunjucks = false;
+    }
+  });
+
+  it('render() - (disableNunjucks === false) - front-matter', async () => {
+    const renderer = hexo.render.renderer.get('markdown');
+    renderer.disableNunjucks = false;
+
+    try {
+      const data = await post.render(null, {
+        content: fixture.content,
+        engine: 'markdown',
+        disableNunjucks: true
+      });
+      data.content.trim().should.eql(fixture.expected_disable_nunjucks);
+    } finally {
+      renderer.disableNunjucks = false;
+    }
+  });
+
+  // Only boolean type of front-matter's disableNunjucks is valid
+  it('render() - (disableNunjucks === null) - front-matter', async () => {
+    const renderer = hexo.render.renderer.get('markdown');
+    renderer.disableNunjucks = true;
+
+    try {
+      const data = await post.render(null, {
+        content: fixture.content,
+        engine: 'markdown',
+        disableNunjucks: null
+      });
+      data.content.trim().should.eql(fixture.expected_disable_nunjucks);
+    } finally {
+      renderer.disableNunjucks = false;
+    }
+  });
+
   // #2321
   it('render() - allow backtick code block in "blockquote" tag plugin', async () => {
     const code = 'alert("Hello world")';
@@ -1040,7 +1171,7 @@ describe('Post', () => {
       engine: 'markdown'
     });
 
-    data.content.trim().should.contains(`<pre><code class="sh">${escapeHTML('echo "Hi"')}</code></pre>`);
+    data.content.trim().should.contains(`<pre><code class="sh">${escapeHTML('echo "Hi"')}\n</code></pre>`);
     data.content.trim().should.contains('<script src="//gist.github.com/gist_id.js"></script>');
     data.content.trim().should.contains('<script src="//gist.github.com/gist_id_2.js"></script>');
   });
@@ -1133,13 +1264,13 @@ describe('Post', () => {
     });
 
     // indented pullquote
-    data.content.trim().should.contains(`<pre><code>${escapeSwigTag('{% pullquote %}foo foo foo{% endpullquote %}')}</code></pre>`);
+    data.content.trim().should.contains(`<pre><code>${escapeSwigTag('{% pullquote %}foo foo foo{% endpullquote %}')}\n</code></pre>`);
     data.content.trim().should.contains('<p>test001</p>');
     // pullquote tag
     data.content.trim().should.contains('<blockquote class="pullquote"><p>bar bar bar</p>\n</blockquote>');
     data.content.trim().should.contains('<p>test002</p>');
     // indented youtube tag
-    data.content.trim().should.contains(`<pre><code>${escapeSwigTag('{% youtube https://example.com/demo.mp4 %}')}</code></pre>`);
+    data.content.trim().should.contains(`<pre><code>${escapeSwigTag('{% youtube https://example.com/demo.mp4 %}')}\n</code></pre>`);
     // youtube tag
     data.content.trim().should.contains('<div class="video-container"><iframe src="https://www.youtube.com/embed/https://example.com/sample.mp4" frameborder="0" loading="lazy" allowfullscreen></iframe></div>');
   });
