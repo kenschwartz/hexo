@@ -3,12 +3,12 @@
 const { deepMerge, full_url_for } = require('hexo-util');
 
 describe('Tag', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo();
   const Tag = hexo.model('Tag');
   const Post = hexo.model('Post');
   const PostTag = hexo.model('PostTag');
-  const defaults = require('../../../lib/hexo/default_config');
+  const defaults = require('../../../dist/hexo/default_config');
 
   before(() => hexo.init());
 
@@ -172,6 +172,7 @@ describe('Tag', () => {
 
     // draft on
     hexo.config.render_drafts = true;
+    await Promise.all(posts.map(post => post.setTags(['foo'])));
     tag = Tag.findOne({name: 'foo'});
     hexo.locals.invalidate();
     tag.posts.map(mapper).should.eql(posts.map(mapper));
@@ -206,6 +207,7 @@ describe('Tag', () => {
 
     // future off
     hexo.config.future = false;
+    await Promise.all(posts.map(post => post.setTags(['foo'])));
     hexo.locals.invalidate();
     tag = Tag.findOne({name: 'foo'});
     tag.posts.eq(0)._id.should.eql(posts[0]._id);

@@ -3,15 +3,16 @@
 const { join } = require('path');
 const moment = require('moment');
 const { readFile, mkdirs, unlink, rmdir, writeFile, exists, stat, listDir } = require('hexo-fs');
-const { highlight, escapeHTML } = require('hexo-util');
+const { highlight } = require('hexo-util');
 const { spy, useFakeTimers } = require('sinon');
 const { parse: yfm } = require('hexo-front-matter');
 const fixture = require('../../fixtures/post_render');
 const escapeSwigTag = str => str.replace(/{/g, '&#123;').replace(/}/g, '&#125;');
 
 describe('Post', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(join(__dirname, 'post_test'));
+  require('../../../dist/plugins/highlight/')(hexo);
   const { post } = hexo;
   const now = Date.now();
   let clock;
@@ -685,6 +686,16 @@ describe('Post', () => {
     await unlink(path);
   });
 
+  it('render() - skip js', async () => {
+    const content = 'let a = "{{ 1 + 1 }}"';
+
+    const data = await post.render(null, {
+      content,
+      source: 'render_test.js'
+    });
+    data.content.trim().should.eql(content);
+  });
+
   it('render() - toString', async () => {
     const content = 'foo: 1';
 
@@ -892,7 +903,8 @@ describe('Post', () => {
     ].join('\n');
 
     const data = await post.render(null, {
-      content
+      content,
+      engine: 'markdown'
     });
     data.content.trim().should.eql([
       '<blockquote><p>test1</p>',
@@ -902,9 +914,18 @@ describe('Post', () => {
     ].join('\n'));
   });
 
+  it('render() - swig comments', async () => {
+    const content = '{# blockquote #}';
+
+    const data = await post.render(null, {
+      content,
+      engine: 'markdown'
+    });
+    data.content.trim().should.eql('');
+  });
+
   it('render() - shouln\'t break curly brackets', async () => {
-    hexo.config.prismjs.enable = true;
-    hexo.config.highlight.enable = false;
+    hexo.config.syntax_highlighter = 'prismjs';
 
     const content = [
       '\\begin{equation}',
@@ -920,8 +941,7 @@ describe('Post', () => {
     data.content.should.include('\\begin{equation}');
     data.content.should.include('\\end{equation}');
 
-    hexo.config.prismjs.enable = false;
-    hexo.config.highlight.enable = true;
+    hexo.config.syntax_highlighter = 'highlight.js';
   });
 
   // #2321
@@ -1205,21 +1225,6 @@ describe('Post', () => {
     data.content.trim().should.eql(`<p><code>${escapeSwigTag('{{ 1 + 1 }}')}</code> 2</p>`);
   });
 
-  // #4317
-  it('render() - issue #4317', async () => {
-    const content = fixture.content_for_issue_4317;
-    hexo.config.highlight.enable = false;
-
-    const data = await post.render(null, {
-      content,
-      engine: 'markdown'
-    });
-
-    data.content.trim().should.contains(`<pre><code class="sh">${escapeHTML('echo "Hi"')}\n</code></pre>`);
-    data.content.trim().should.contains('<script src="//gist.github.com/gist_id.js"></script>');
-    data.content.trim().should.contains('<script src="//gist.github.com/gist_id_2.js"></script>');
-  });
-
   // #3543
   it('render() - issue #3543', async () => {
     // Adopted from #3459
@@ -1295,11 +1300,8 @@ describe('Post', () => {
       '',
       '## Insert',
       '',
-      '    {% youtube https://example.com/demo.mp4 %}',
-      '',
       'test002',
-      '',
-      '{% youtube https://example.com/sample.mp4 %}'
+      ''
     ].join('\n');
 
     const data = await post.render(null, {
@@ -1313,10 +1315,6 @@ describe('Post', () => {
     // pullquote tag
     data.content.trim().should.contains('<blockquote class="pullquote"><p>bar bar bar</p>\n</blockquote>');
     data.content.trim().should.contains('<p>test002</p>');
-    // indented youtube tag
-    data.content.trim().should.contains(`<pre><code>${escapeSwigTag('{% youtube https://example.com/demo.mp4 %}')}\n</code></pre>`);
-    // youtube tag
-    data.content.trim().should.contains('<div class="video-container"><iframe src="https://www.youtube.com/embed/https://example.com/sample.mp4" frameborder="0" loading="lazy" allowfullscreen></iframe></div>');
   });
 
   // #4385
@@ -1342,8 +1340,7 @@ describe('Post', () => {
   });
 
   it('render() - issue #4460', async () => {
-    hexo.config.prismjs.enable = true;
-    hexo.config.highlight.enable = false;
+    hexo.config.syntax_highlighter = 'prismjs';
 
     const content = fixture.content_for_issue_4460;
 
@@ -1354,13 +1351,11 @@ describe('Post', () => {
 
     data.content.should.not.include('hexoPostRenderEscape');
 
-    hexo.config.prismjs.enable = false;
-    hexo.config.highlight.enable = true;
+    hexo.config.syntax_highlighter = 'highlight.js';
   });
 
   it('render() - empty tag name', async () => {
-    hexo.config.prismjs.enable = true;
-    hexo.config.highlight.enable = false;
+    hexo.config.syntax_highlighter = 'prismjs';
 
     const content = 'Disable rendering of Nunjucks tag `{{ }}` / `{% %}`';
 
@@ -1372,7 +1367,51 @@ describe('Post', () => {
     data.content.should.include(escapeSwigTag('{{ }}'));
     data.content.should.include(escapeSwigTag('{% %}'));
 
-    hexo.config.prismjs.enable = false;
-    hexo.config.highlight.enable = true;
+    hexo.config.syntax_highlighter = 'highlight.js';
+  });
+
+  // https://github.com/hexojs/hexo/issues/5301
+  it('render() - dont escape incomplete tags', async () => {
+    const content = 'dont drop `{% }` 11111 `{# }` 22222 `{{ }` 33333';
+
+    const data = await post.render(null, {
+      content,
+      engine: 'markdown'
+    });
+
+    data.content.should.contains('11111');
+    data.content.should.contains('22222');
+    data.content.should.contains('33333');
+    data.content.should.not.contains('&#96;'); // `
+  });
+
+  it('render() - incomplete tags throw error', async () => {
+    const content = 'nunjucks should throw {#  } error';
+
+    try {
+      await post.render(null, {
+        content,
+        engine: 'markdown'
+      });
+      should.fail();
+    } catch (err) {}
+  });
+
+  // https://github.com/hexojs/hexo/issues/5401
+  it('render() - tags in different lines', async () => {
+    const content = [
+      '{% link',
+      'foobar',
+      'https://hexo.io/',
+      'tttitle',
+      '%}'
+    ].join('\n');
+
+    const data = await post.render(null, {
+      content,
+      engine: 'markdown'
+    });
+
+    data.content.should.eql('<a href="https://hexo.io/" title="tttitle" target="">foobar</a>');
   });
 });

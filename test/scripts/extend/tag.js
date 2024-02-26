@@ -1,10 +1,7 @@
 'use strict';
 
-const { spy } = require('sinon');
-const Promise = require('bluebird');
-
 describe('Tag', () => {
-  const Tag = require('../../../lib/extend/tag');
+  const Tag = require('../../../dist/extend/tag');
   const tag = new Tag();
 
   it('register()', async () => {
@@ -19,7 +16,7 @@ describe('Tag', () => {
   it('register() - async', async () => {
     const tag = new Tag();
 
-    tag.register('test', (args, content) => Promise.resolve(args.join(' ')), { async: true });
+    tag.register('test', async (args, content) => args.join(' '), { async: true });
 
     const result = await tag.render('{% test foo bar %}');
     result.should.eql('foo bar');
@@ -43,7 +40,7 @@ describe('Tag', () => {
   it('register() - async block', async () => {
     const tag = new Tag();
 
-    tag.register('test', (args, content) => Promise.resolve(args.join(' ') + ' ' + content), { ends: true, async: true });
+    tag.register('test', async (args, content) => args.join(' ') + ' ' + content, { ends: true, async: true });
 
     const str = [
       '{% test foo bar %}',
@@ -81,9 +78,7 @@ describe('Tag', () => {
     const tag = new Tag();
 
     tag.register('test', (args, content) => content, {ends: true, async: true});
-    tag.register('async', (args, content) => {
-      return Promise.resolve(args.join(' ') + ' ' + content);
-    }, { ends: true, async: true });
+    tag.register('async', async (args, content) => args.join(' ') + ' ' + content, { ends: true, async: true });
 
     const str = [
       '{% test %}',
@@ -136,7 +131,7 @@ describe('Tag', () => {
   it('unregister()', () => {
     const tag = new Tag();
 
-    tag.register('test', (args, content) => Promise.resolve(args.join(' ')), {async: true});
+    tag.register('test', async (args, content) => args.join(' '), {async: true});
     tag.unregister('test');
 
     return tag.render('{% test foo bar %}')
@@ -167,13 +162,17 @@ describe('Tag', () => {
   it('render() - callback', () => {
     const tag = new Tag();
 
-    const callback = spy();
+    // spy() is not a function
+    let spy = false;
+    const callback = () => {
+      spy = true;
+    };
 
     tag.register('test', () => 'foo');
 
-    return tag.render('{% test %}', callback()).then(result => {
+    return tag.render('{% test %}', callback).then(result => {
       result.should.eql('foo');
-      callback.calledOnce.should.be.true;
+      spy.should.eql(true);
     });
   });
 });

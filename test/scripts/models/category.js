@@ -3,12 +3,12 @@
 const { deepMerge, full_url_for } = require('hexo-util');
 
 describe('Category', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo();
   const Category = hexo.model('Category');
   const Post = hexo.model('Post');
   const PostCategory = hexo.model('PostCategory');
-  const defaults = require('../../../lib/hexo/default_config');
+  const defaults = require('../../../dist/hexo/default_config');
 
   before(() => hexo.init());
 
@@ -191,6 +191,8 @@ describe('Category', () => {
 
     // draft on
     hexo.config.render_drafts = true;
+
+    await Promise.all(posts.map(post => post.setCategories(['foo'])));
     hexo.locals.invalidate();
     cat = Category.findOne({name: 'foo'});
     cat.posts.map(mapper).should.eql(posts.map(mapper));
@@ -227,6 +229,8 @@ describe('Category', () => {
 
     // future off
     hexo.config.future = false;
+
+    await Promise.all(posts.map(post => post.setCategories(['foo'])));
     hexo.locals.invalidate();
     cat = Category.findOne({name: 'foo'});
     cat.posts.eq(0)._id.should.eql(posts[0]._id);

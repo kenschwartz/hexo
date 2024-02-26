@@ -3,7 +3,7 @@
 const Promise = require('bluebird');
 
 describe('tagcloud', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(__dirname);
   const Post = hexo.model('Post');
   const Tag = hexo.model('Tag');
@@ -12,7 +12,7 @@ describe('tagcloud', () => {
     config: hexo.config
   };
 
-  const tagcloud = require('../../../lib/plugins/helper/tagcloud').bind(ctx);
+  const tagcloud = require('../../../dist/plugins/helper/tagcloud').bind(ctx);
 
   before(async () => {
     await hexo.init();
@@ -50,7 +50,7 @@ describe('tagcloud', () => {
     await hexo.init();
     hexo.locals.invalidate();
     hexo.site = hexo.locals.toObject();
-    const tagcloud = require('../../../lib/plugins/helper/tagcloud').bind(hexo);
+    const tagcloud = require('../../../dist/plugins/helper/tagcloud').bind(hexo);
 
     const result = tagcloud();
 
@@ -288,6 +288,28 @@ describe('tagcloud', () => {
       '<a href="/tags/bcd/" style="font-size: 20px;" class="tag-cloud-10">bcd</a>',
       '<a href="/tags/cde/" style="font-size: 16.67px;" class="tag-cloud-7">cde</a>',
       '<a href="/tags/def/" style="font-size: 10px;" class="tag-cloud-0">def</a>'
+    ].join(' '));
+  });
+
+  it('show_count', () => {
+    const result = tagcloud({ show_count: true });
+
+    result.should.eql([
+      '<a href="/tags/abc/" style="font-size: 13.33px;">abc<span class="count">2</span></a>',
+      '<a href="/tags/bcd/" style="font-size: 20px;">bcd<span class="count">4</span></a>',
+      '<a href="/tags/cde/" style="font-size: 16.67px;">cde<span class="count">3</span></a>',
+      '<a href="/tags/def/" style="font-size: 10px;">def<span class="count">1</span></a>'
+    ].join(' '));
+  });
+
+  it('show_count with custom class', () => {
+    const result = tagcloud({ show_count: true, count_class: 'tag-count' });
+
+    result.should.eql([
+      '<a href="/tags/abc/" style="font-size: 13.33px;">abc<span class="tag-count">2</span></a>',
+      '<a href="/tags/bcd/" style="font-size: 20px;">bcd<span class="tag-count">4</span></a>',
+      '<a href="/tags/cde/" style="font-size: 16.67px;">cde<span class="tag-count">3</span></a>',
+      '<a href="/tags/def/" style="font-size: 10px;">def<span class="tag-count">1</span></a>'
     ].join(' '));
   });
 });

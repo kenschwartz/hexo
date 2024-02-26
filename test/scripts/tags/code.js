@@ -4,9 +4,10 @@ const util = require('hexo-util');
 const cheerio = require('cheerio');
 
 describe('code', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo();
-  const codeTag = require('../../../lib/plugins/tag/code')(hexo);
+  require('../../../dist/plugins/highlight/')(hexo);
+  const codeTag = require('../../../dist/plugins/tag/code')(hexo);
   const { escapeHTML } = util;
 
   const fixture = [
@@ -114,12 +115,12 @@ describe('code', () => {
     });
 
     it('disabled', () => {
-      hexo.config.highlight.enable = false;
+      hexo.config.syntax_highlighter = '';
 
       const result = code('', fixture);
       result.should.eql('<pre><code>' + escapeHTML(fixture) + '</code></pre>');
 
-      hexo.config.highlight.enable = true;
+      hexo.config.syntax_highlighter = 'highlight.js';
     });
 
     it('first_line', () => {
@@ -173,12 +174,19 @@ describe('code', () => {
         wrap: true
       }));
     });
+
+    it('language_attr', () => {
+      const result = code('lang:js language_attr:true', fixture);
+      result.should.eql(highlight(fixture, {
+        lang: 'js',
+        languageAttr: true
+      }));
+    });
   });
 
   describe('prismjs', () => {
     beforeEach(() => {
-      hexo.config.highlight.enable = false;
-      hexo.config.prismjs.enable = true;
+      hexo.config.syntax_highlighter = 'prismjs';
     });
 
     it('default', () => {
@@ -238,13 +246,12 @@ describe('code', () => {
     });
 
     it('disabled', () => {
-      hexo.config.highlight.enable = false;
-      hexo.config.prismjs.enable = false;
+      hexo.config.syntax_highlighter = '';
 
       const result = code('', fixture);
       result.should.eql('<pre><code>' + escapeHTML(fixture) + '</code></pre>');
 
-      hexo.config.highlight.enable = true;
+      hexo.config.syntax_highlighter = 'highlight.js';
     });
 
     it('first_line', () => {

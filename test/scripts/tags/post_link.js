@@ -1,9 +1,9 @@
 'use strict';
 
 describe('post_link', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(__dirname);
-  const postLink = require('../../../lib/plugins/tag/post_link')(hexo);
+  const postLink = require('../../../dist/plugins/tag/post_link')(hexo);
   const Post = hexo.model('Post');
 
   hexo.config.permalink = ':title/';
@@ -22,6 +22,11 @@ describe('post_link', () => {
     source: 'fôo',
     slug: 'fôo',
     title: 'Hello world'
+  },
+  {
+    source: 'no-title',
+    slug: 'no-title',
+    title: ''
   }])));
 
   it('default', () => {
@@ -33,7 +38,11 @@ describe('post_link', () => {
   });
 
   it('title', () => {
-    postLink(['foo', 'test']).should.eql('<a href="/foo/" title="test">test</a>');
+    postLink(['foo', 'test']).should.eql('<a href="/foo/" title="Hello world">test</a>');
+  });
+
+  it('no title', () => {
+    postLink(['no-title']).should.eql('<a href="/no-title/" title="no-title">no-title</a>');
   });
 
   it('should escape tag in title by default', () => {
@@ -45,7 +54,7 @@ describe('post_link', () => {
   });
 
   it('should escape tag in custom title', () => {
-    postLink(['title-with-tag', '<test>', 'title', 'true']).should.eql('<a href="/title-with-tag/" title="&lt;test&gt; title">&lt;test&gt; title</a>');
+    postLink(['title-with-tag', '<test>', 'title', 'true']).should.eql('<a href="/title-with-tag/" title="&quot;Hello&quot; &lt;new world&gt;!">&lt;test&gt; title</a>');
   });
 
   it('should not escape tag in title', () => {
@@ -54,14 +63,23 @@ describe('post_link', () => {
 
   it('should not escape tag in custom title', () => {
     postLink(['title-with-tag', 'This is a <b>Bold</b> "statement"', 'false'])
-      .should.eql('<a href="/title-with-tag/" title="This is a &lt;b&gt;Bold&lt;&#x2F;b&gt; &quot;statement&quot;">This is a <b>Bold</b> "statement"</a>');
+      .should.eql('<a href="/title-with-tag/" title="&quot;Hello&quot; &lt;new world&gt;!">This is a <b>Bold</b> "statement"</a>');
   });
 
-  it('no slug', () => {
-    postLink([]).should.eql('<a href="#">Post not found: Invalid post_link</a>');
+  it('should throw if no slug', () => {
+    should.throw(() => postLink([]), Error, /Post not found: "undefined" doesn't exist for \{% post_link %\}/);
   });
 
-  it('post not found', () => {
-    postLink(['bar']).should.eql('<a href="#">Post not found: bar</a>');
+  it('should throw if post not found', () => {
+    should.throw(() => postLink(['bar']), Error, /Post not found: post_link bar\./);
+  });
+
+  it('should keep hash', () => {
+    postLink(['foo#bar']).should.eql('<a href="/foo/#bar" title="Hello world">Hello world</a>');
+  });
+
+  it('should keep subdir', () => {
+    hexo.config.url = 'http://example.com/subdir';
+    postLink(['foo']).should.eql('<a href="/subdir/foo/" title="Hello world">Hello world</a>');
   });
 });

@@ -5,7 +5,7 @@ describe('full_url_for', () => {
     config: { url: 'https://example.com' }
   };
 
-  const fullUrlFor = require('../../../lib/plugins/helper/full_url_for').bind(ctx);
+  const fullUrlFor = require('../../../dist/plugins/helper/full_url_for').bind(ctx);
 
   it('no path input', () => {
     fullUrlFor().should.eql(ctx.config.url + '/');
@@ -17,7 +17,7 @@ describe('full_url_for', () => {
     fullUrlFor('/index.html').should.eql(ctx.config.url + '/index.html');
   });
 
-  it('internel url (pretty_urls.trailing_index disabled)', () => {
+  it('internal url (pretty_urls.trailing_index disabled)', () => {
     ctx.config.pretty_urls = { trailing_index: false };
     fullUrlFor('index.html').should.eql(ctx.config.url + '/');
     fullUrlFor('/index.html').should.eql(ctx.config.url + '/');

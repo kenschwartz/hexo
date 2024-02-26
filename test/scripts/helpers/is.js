@@ -1,9 +1,9 @@
 'use strict';
 
 describe('is', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(__dirname);
-  const is = require('../../../lib/plugins/helper/is');
+  const is = require('../../../dist/plugins/helper/is');
 
   it('is_current', async () => {
     await is.current.call({path: 'index.html', config: hexo.config}).should.be.true;
@@ -23,6 +23,13 @@ describe('is', () => {
   it('is_home', async () => {
     await is.home.call({page: {__index: true}}).should.be.true;
     await is.home.call({page: {}}).should.be.false;
+  });
+
+  it('is_home_first_page', async () => {
+    await is.home_first_page.call({page: {__index: true, current: 1}}).should.be.true;
+    await is.home_first_page.call({page: {__index: true, current: 2}}).should.be.false;
+    await is.home_first_page.call({page: {__index: true}}).should.be.false;
+    await is.home_first_page.call({page: {}}).should.be.false;
   });
 
   it('is_post', async () => {

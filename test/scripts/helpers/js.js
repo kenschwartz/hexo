@@ -3,14 +3,14 @@
 const cheerio = require('cheerio');
 
 describe('js', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(__dirname);
 
   const ctx = {
     config: hexo.config
   };
 
-  const js = require('../../../lib/plugins/helper/js').bind(ctx);
+  const js = require('../../../dist/plugins/helper/js').bind(ctx);
 
   function assertResult(result, expected) {
     const $ = cheerio.load(result);
@@ -66,7 +66,7 @@ describe('js', () => {
     assertResult(js({src: '/script.js', foo: 'bar'}), {src: '/script.js', foo: 'bar'});
   });
 
-  it('mulitple objects', () => {
+  it('multiple objects', () => {
     assertResult(js({src: '/foo.js'}, {src: '/bar.js'}), [{src: '/foo.js'}, {src: '/bar.js'}]);
     assertResult(js({src: '/aaa.js', bbb: 'ccc'}, {src: '/ddd.js', eee: 'fff'}),
       [{src: '/aaa.js', bbb: 'ccc'}, {src: '/ddd.js', eee: 'fff'}]);
@@ -81,5 +81,18 @@ describe('js', () => {
   it('async and defer attributes', () => {
     assertResult(js({src: '/foo.js', 'async': true}), {src: '/foo.js', 'async': true});
     assertResult(js({src: '/bar.js', 'defer': true}), {src: '/bar.js', 'defer': true});
+  });
+
+  it('relative link', () => {
+    ctx.config.relative_link = true;
+    ctx.config.root = '/';
+
+    ctx.path = '';
+    assertResult(js('script'), 'script.js');
+
+    ctx.path = 'foo/bar/';
+    assertResult(js('script'), '../../script.js');
+
+    ctx.config.relative_link = false;
   });
 });

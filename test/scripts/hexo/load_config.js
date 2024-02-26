@@ -5,10 +5,10 @@ const { writeFile, unlink, mkdirs, rmdir } = require('hexo-fs');
 const { makeRe } = require('micromatch');
 
 describe('Load config', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(join(__dirname, 'config_test'), { silent: true });
-  const loadConfig = require('../../../lib/hexo/load_config');
-  const defaultConfig = require('../../../lib/hexo/default_config');
+  const loadConfig = require('../../../dist/hexo/load_config');
+  const defaultConfig = require('../../../dist/hexo/default_config');
 
   hexo.env.init = true;
 
@@ -127,51 +127,6 @@ describe('Load config', () => {
     }
   });
 
-  // Deprecated: config.external_link boolean option will be removed in future
-  it('migrate external_link config from boolean to object - true', async () => {
-    const content = 'external_link: true';
-
-    try {
-      await writeFile(hexo.config_path, content);
-      await loadConfig(hexo);
-      hexo.config.external_link.should.eql({
-        enable: true,
-        field: 'site',
-        exclude: ''
-      });
-    } finally {
-      await unlink(hexo.config_path);
-    }
-  });
-
-  it('migrate external_link config from boolean to object - false', async () => {
-    const content = 'external_link: false';
-
-    try {
-      await writeFile(hexo.config_path, content);
-      await loadConfig(hexo);
-      hexo.config.external_link.should.eql({
-        enable: false,
-        field: 'site',
-        exclude: ''
-      });
-    } finally {
-      await unlink(hexo.config_path);
-    }
-  });
-
-  it('migrate external_link config from boolean to object - undefined', async () => {
-    try {
-      // Test undefined
-      await writeFile(hexo.config_path, '');
-
-      await loadConfig(hexo);
-      hexo.config.external_link.should.eql(defaultConfig.external_link);
-    } finally {
-      await unlink(hexo.config_path);
-    }
-  });
-
   it('custom public_dir', async () => {
     try {
       await writeFile(hexo.config_path, 'public_dir: foo');
@@ -250,7 +205,7 @@ describe('Load config', () => {
     try {
       await writeFile(hexo.config_path, content);
       await loadConfig(hexo);
-      hexo.config.highlight.enable.should.be.true;
+      hexo.config.highlight.line_number.should.be.true;
       hexo.config.highlight.tab_replace.should.eql('yoooo');
     } finally {
       await unlink(hexo.config_path);

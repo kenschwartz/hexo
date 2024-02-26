@@ -6,9 +6,10 @@ const { highlight, prismHighlight } = require('hexo-util');
 const Promise = require('bluebird');
 
 describe('include_code', () => {
-  const Hexo = require('../../../lib/hexo');
+  const Hexo = require('../../../dist/hexo');
   const hexo = new Hexo(join(__dirname, 'include_code_test'));
-  const includeCode = Promise.method(require('../../../lib/plugins/tag/include_code')(hexo));
+  require('../../../dist/plugins/highlight/')(hexo);
+  const includeCode = Promise.method(require('../../../dist/plugins/tag/include_code')(hexo));
   const path = join(hexo.source_dir, hexo.config.code_dir, 'test.js');
   const defaultCfg = JSON.parse(JSON.stringify(hexo.config));
 
@@ -30,8 +31,7 @@ describe('include_code', () => {
 
   describe('highlightjs', () => {
     it('default', async () => {
-      hexo.config.highlight.enable = true;
-      hexo.config.prismjs.enable = false;
+      hexo.config.syntax_highlighter = 'highlight.js';
 
       const expected = highlight(fixture, {
         lang: 'js',
@@ -60,6 +60,22 @@ describe('include_code', () => {
 
       const result = await code('Hello world lang:js test.js');
       result.should.eql(expected);
+    });
+
+    it('language_attr', async () => {
+      const original = hexo.config.highlight.language_attr;
+      hexo.config.highlight.language_attr = true;
+
+      const expected = highlight(fixture, {
+        lang: 'js',
+        caption: '<span>Hello world</span><a href="/downloads/code/test.js">view raw</a>',
+        languageAttr: true
+      });
+
+      const result = await code('Hello world lang:js test.js');
+      result.should.eql(expected);
+
+      hexo.config.highlight.language_attr = original;
     });
 
     it('from', async () => {
@@ -108,7 +124,7 @@ describe('include_code', () => {
     });
 
     it('disabled', async () => {
-      hexo.config.highlight.enable = false;
+      hexo.config.syntax_highlighter = '';
 
       const result = await code('test.js');
       result.should.eql('<pre><code>' + fixture + '</code></pre>');
@@ -117,8 +133,7 @@ describe('include_code', () => {
 
   describe('prismjs', () => {
     beforeEach(() => {
-      hexo.config.highlight.enable = false;
-      hexo.config.prismjs.enable = true;
+      hexo.config.syntax_highlighter = 'prismjs';
     });
 
     it('default', async () => {
@@ -197,8 +212,7 @@ describe('include_code', () => {
     });
 
     it('disabled', async () => {
-      hexo.config.highlight.enable = false;
-      hexo.config.prismjs.enable = false;
+      hexo.config.syntax_highlighter = '';
 
       const result = await code('test.js');
       result.should.eql('<pre><code>' + fixture + '</code></pre>');
