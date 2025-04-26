@@ -53,10 +53,10 @@ function njkCompile(data: StoreFunctionData): nunjucks.Template {
 
   const text = 'text' in data ? data.text : readFileSync(data.path);
 
-  return nunjucks.compile(text as string, env, data.path);
+  return nunjucks.compile(text, env, data.path);
 }
 
-function njkRenderer(data: StoreFunctionData, locals: object): string {
+function njkRenderer(data: StoreFunctionData, locals?: any): string {
   return njkCompile(data).render(locals);
 }
 

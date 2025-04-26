@@ -1,13 +1,15 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es6",
+    "target": "es2020",
     "sourceMap": true,
     "outDir": "dist",
     "declaration": true,
+    "skipLibCheck": true,
     "esModuleInterop": true,
     "types": [
-      "node"
+      "node",
+      "mocha"
     ]
   },
   "include": [

@@ -1,9 +1,10 @@
 import { url_for } from 'hexo-util';
 import type { CategorySchema, LocalsType } from '../../types';
 import type Query from 'warehouse/dist/query';
+import type Document from 'warehouse/dist/document';
 
 interface Options {
-  style?: string;
+  style?: string | false;
   class?: string;
   depth?: number | string;
   orderby?: string;
@@ -13,11 +14,9 @@ interface Options {
   transform?: (name: string) => string;
   separator?: string;
   suffix?: string;
-  children_indicator?: boolean;
+  children_indicator?: string | boolean;
 }
 
-function listCategoriesHelper(this: LocalsType, options?: Options): string;
-function listCategoriesHelper(this: LocalsType, categories: Query<CategorySchema>, options?: Options): string;
 function listCategoriesHelper(this: LocalsType, categories?: Query<CategorySchema> | Options, options?: Options) {
   if (!options && (!categories || !Object.prototype.hasOwnProperty.call(categories, 'length'))) {
     options = categories as Options;
@@ -52,7 +51,7 @@ function listCategoriesHelper(this: LocalsType, categories?: Query<CategorySchem
   const hierarchicalList = (level: number, parent?: any) => {
     let result = '';
 
-    prepareQuery(parent).forEach((cat: CategorySchema) => {
+    prepareQuery(parent).forEach((cat: Document<CategorySchema> & CategorySchema) => {
       let child;
       if (!depth || level + 1 < depth) {
         child = hierarchicalList(level + 1, cat._id);

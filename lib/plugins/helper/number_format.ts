@@ -1,12 +1,12 @@
 interface Options {
   delimiter?: string;
   separator?: string;
-  precision?: number;
+  precision?: number | false;
 }
 
 function numberFormatHelper(num: number, options: Options = {}) {
   const split = num.toString().split('.');
-  let before = split.shift() as string;
+  let before = split.shift();
   let after = split.length ? split[0] : '';
   const delimiter = options.delimiter || ',';
   const separator = options.separator || '.';

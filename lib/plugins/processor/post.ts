@@ -1,17 +1,19 @@
-import { toDate, timezone, isExcludedFile, isTmpFile, isHiddenFile, isMatch } from './common';
+import { toDate, adjustDateForTimezone, isExcludedFile, isTmpFile, isHiddenFile, isMatch } from './common';
 import Promise from 'bluebird';
 import { parse as yfm } from 'hexo-front-matter';
-import { extname, join } from 'path';
+import { extname, join, posix, sep } from 'path';
 import { stat, listDir } from 'hexo-fs';
 import { slugize, Pattern, Permalink } from 'hexo-util';
 import { magenta } from 'picocolors';
 import type { _File } from '../../box';
 import type Hexo from '../../hexo';
 import type { Stats } from 'fs';
+import { PostAssetSchema, PostSchema } from '../../types';
+import type Document from 'warehouse/dist/document';
 
 const postDir = '_posts/';
 const draftDir = '_drafts/';
-let permalink;
+let permalink: Permalink;
 
 const preservedKeys = {
   title: true,
@@ -55,7 +57,7 @@ export = (ctx: Hexo) => {
       return result;
     }),
 
-    process: function postProcessor(file) {
+    process: function postProcessor(file: _File) {
       if (file.params.renderable) {
         return processPost(ctx, file);
       } else if (ctx.config.post_asset_folder) {
@@ -70,8 +72,8 @@ function processPost(ctx: Hexo, file: _File) {
   const { path } = file.params;
   const doc = Post.findOne({source: file.path});
   const { config } = ctx;
-  const { timezone: timezoneCfg } = config;
-  const updated_option = config.updated_option;
+  const { timezone, updated_option, use_slug_as_post_title } = config;
+
   let categories, tags;
 
   if (file.type === 'skip' && doc) {
@@ -90,7 +92,7 @@ function processPost(ctx: Hexo, file: _File) {
     file.stat(),
     file.read()
   ]).spread((stats: Stats, content: string) => {
-    const data = yfm(content);
+    const data: PostSchema = yfm(content);
     const info = parseFilename(config.new_post_name, path);
     const keys = Object.keys(info);
 
@@ -109,32 +111,39 @@ function processPost(ctx: Hexo, file: _File) {
       if (!preservedKeys[key]) data[key] = info[key];
     }
 
+    // use `slug` as `title` of post when `title` is not specified.
+    // https://github.com/hexojs/hexo/issues/5372
+    if (use_slug_as_post_title && !('title' in data)) {
+      // @ts-expect-error - title is not in data
+      data.title = info.title;
+    }
+
     if (data.date) {
-      data.date = toDate(data.date);
+      data.date = toDate(data.date) as any;
     } else if (info && info.year && (info.month || info.i_month) && (info.day || info.i_day)) {
       data.date = new Date(
         info.year,
         parseInt(info.month || info.i_month, 10) - 1,
         parseInt(info.day || info.i_day, 10)
-      );
+      ) as any;
     }
 
     if (data.date) {
-      if (timezoneCfg) data.date = timezone(data.date, timezoneCfg);
+      if (timezone) data.date = adjustDateForTimezone(data.date, timezone) as any;
     } else {
-      data.date = stats.birthtime;
+      data.date = stats.birthtime as any;
     }
 
-    data.updated = toDate(data.updated);
+    data.updated = toDate(data.updated) as any;
 
     if (data.updated) {
-      if (timezoneCfg) data.updated = timezone(data.updated, timezoneCfg);
+      if (timezone) data.updated = adjustDateForTimezone(data.updated, timezone) as any;
     } else if (updated_option === 'date') {
       data.updated = data.date;
     } else if (updated_option === 'empty') {
       data.updated = undefined;
     } else {
-      data.updated = stats.mtime;
+      data.updated = stats.mtime as any;
     }
 
     if (data.category && !data.categories) {
@@ -175,7 +184,7 @@ function processPost(ctx: Hexo, file: _File) {
     }
 
     return Post.insert(data);
-  }).then(doc => Promise.all([
+  }).then((doc: PostSchema) => Promise.all([
     doc.setCategories(categories),
     doc.setTags(tags),
     scanAssetDir(ctx, doc)
@@ -199,7 +208,7 @@ function parseFilename(config: string, path: string) {
     });
   }
 
-  const data = permalink.parse(path);
+  const data = permalink.parse(path) as Record<string, any>;
 
   if (data) {
     if (data.title !== undefined) {
@@ -215,7 +224,7 @@ function parseFilename(config: string, path: string) {
   };
 }
 
-function scanAssetDir(ctx: Hexo, post) {
+function scanAssetDir(ctx: Hexo, post: PostSchema) {
   if (!ctx.config.post_asset_folder) return;
 
   const assetDir = post.asset_dir;
@@ -249,7 +258,7 @@ function scanAssetDir(ctx: Hexo, post) {
   });
 }
 
-function shouldSkipAsset(ctx: Hexo, post, asset) {
+function shouldSkipAsset(ctx: Hexo, post: PostSchema, asset: Document<PostAssetSchema>) {
   if (!ctx._showDrafts()) {
     if (post.published === false && asset) {
       // delete existing draft assets if draft posts are hidden
@@ -268,19 +277,16 @@ function processAsset(ctx: Hexo, file: _File) {
   const PostAsset = ctx.model('PostAsset');
   const Post = ctx.model('Post');
   const id = file.source.substring(ctx.base_dir.length).replace(/\\/g, '/');
-  const doc = PostAsset.findById(id);
+  const postAsset = PostAsset.findById(id);
 
-  if (file.type === 'delete') {
-    if (doc) {
-      return doc.remove();
+  if (file.type === 'delete' || Post.length === 0) {
+    if (postAsset) {
+      return postAsset.remove();
     }
-
     return;
   }
 
-  // TODO: Better post searching
-  const post = Post.toArray().find(post => file.source.startsWith(post.asset_dir));
-  if (post != null && (post.published || ctx._showDrafts())) {
+  const savePostAsset = (post: Document<PostSchema>) => {
     return PostAsset.save({
       _id: id,
       slug: file.source.substring(post.asset_dir.length),
@@ -288,9 +294,24 @@ function processAsset(ctx: Hexo, file: _File) {
       modified: file.type !== 'skip',
       renderable: file.params.renderable
     });
+  };
+
+  if (postAsset) {
+    // `postAsset.post` is `Post.id`.
+    const post = Post.findById(postAsset.post);
+    if (post != null && (post.published || ctx._showDrafts())) {
+      return savePostAsset(post);
+    }
   }
 
-  if (doc) {
-    return doc.remove();
+  const assetDir = id.slice(0, id.lastIndexOf(sep));
+  const post = Post.findOne(p => p.asset_dir.endsWith(posix.join(assetDir, '/')));
+  if (post != null && (post.published || ctx._showDrafts())) {
+    return savePostAsset(post);
+  }
+
+  // NOTE: Probably, unreachable.
+  if (postAsset) {
+    return postAsset.remove();
   }
 }

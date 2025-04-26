@@ -8,12 +8,6 @@ interface Data {
   modified: boolean;
 }
 
-declare module 'stream' {
-  export default class _Stream extends Stream {
-    readable: boolean;
-  }
-}
-
 class RouteStream extends Readable {
   public _data: any;
   public _ended: boolean;
@@ -58,7 +52,7 @@ class RouteStream extends Readable {
     this._ended = true;
 
     data().then(data => {
-      if (data instanceof Stream && data.readable) {
+      if (data instanceof Stream && (data as Stream.Readable).readable) {
         data.on('data', d => {
           this.push(d);
         });
@@ -84,7 +78,7 @@ class RouteStream extends Readable {
   }
 }
 
-const _format = (path: string): string => {
+const _format = (path?: string): string => {
   path = path || '';
   if (typeof path !== 'string') throw new TypeError('path must be a string!');
 
@@ -105,7 +99,6 @@ class Router extends EventEmitter {
   public routes: {
     [key: string]: Data | null;
   };
-  public emit: any;
 
   constructor() {
     super();
@@ -118,7 +111,7 @@ class Router extends EventEmitter {
     return Object.keys(routes).filter(key => routes[key]);
   }
 
-  format(path: string): string {
+  format(path?: string): string {
     return _format(path);
   }
 

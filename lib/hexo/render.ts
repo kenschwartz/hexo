@@ -13,7 +13,7 @@ const getExtname = (str: string): string => {
   return ext.startsWith('.') ? ext.slice(1) : ext;
 };
 
-const toString = (result: any, options: StoreFunctionData) => {
+const toString = (result: any, options: StoreFunctionData): string => {
   if (!Object.prototype.hasOwnProperty.call(options, 'toString') || typeof result === 'string') return result;
 
   if (typeof options.toString === 'function') {
@@ -56,7 +56,9 @@ class Render {
     return this.getRenderer(ext, true);
   }
 
-  render(data: StoreFunctionData, options?: { highlight?: boolean; }, callback?: NodeJSLikeCallback<any>): Promise<any> {
+  render(data: StoreFunctionData, callback?: NodeJSLikeCallback<any>): Promise<any>;
+  render(data: StoreFunctionData, options: any, callback?: NodeJSLikeCallback<any>): Promise<any>;
+  render(data: StoreFunctionData, options?: any | NodeJSLikeCallback<any>, callback?: NodeJSLikeCallback<any>): Promise<any> {
     if (!callback && typeof options === 'function') {
       callback = options;
       options = {};
@@ -74,7 +76,7 @@ class Render {
     } else if (!data.path) {
       return Promise.reject(new TypeError('No input file or string!'));
     } else {
-      promise = readFile(data.path) as Promise<string>;
+      promise = readFile(data.path);
     }
 
     return promise.then(text => {
@@ -107,7 +109,7 @@ class Render {
 
     if (data.text == null) {
       if (!data.path) throw new TypeError('No input file or string!');
-      data.text = readFileSync(data.path) as string;
+      data.text = readFileSync(data.path);
     }
 
     if (data.text == null) throw new TypeError('No input file or string!');
